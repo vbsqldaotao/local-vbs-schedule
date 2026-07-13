@@ -39,6 +39,36 @@ $string['err_daterange']      = 'Khoảng thời gian không được vượt qu
 $string['err_dateinvalid']    = 'dateto phải lớn hơn hoặc bằng datefrom.';
 $string['err_timestamprange'] = 'Timestamp phải là số nguyên dương.';
 
+// Thanh lọc (Task 3.5).
+$string['filtercourse']  = 'Khóa học';
+$string['allcourses']    = 'Tất cả khóa học';
+$string['filtertype']    = 'Loại sự kiện';
+$string['typeboth']      = 'Cả hai';
+$string['typeclass']     = 'Lịch học';
+$string['typeexam']      = 'Lịch thi';
+$string['datefrom']      = 'Từ ngày';
+$string['dateto']        = 'Đến ngày';
+$string['applyfilter']   = 'Lọc';
+
+// Chuyển đổi chế độ xem (Task 3.4).
+$string['viewmode']      = 'Chế độ xem';
+$string['viewmonth']     = 'Tháng';
+$string['viewweek']      = 'Tuần';
+$string['viewlist']      = 'Danh sách';
+$string['navprev']       = 'Kỳ trước';
+$string['navnext']       = 'Kỳ sau';
+$string['navtoday']      = 'Hôm nay';
+
+// Giao diện CBQL (Task 3.6).
+$string['instructortitle']        = 'Lịch giảng dạy (CBQL)';
+$string['cbqlview']               = 'Xem CBQL';
+$string['instructor']             = 'Giảng viên';
+$string['chooseinstructor']       = '— Chọn giảng viên —';
+$string['noinstructorsessions']   = 'Không có lịch giảng trong khoảng thời gian này.';
+$string['date']                   = 'Ngày';
+$string['location']               = 'Địa điểm';
+$string['backtocalendar']         = 'Quay lại lịch của tôi';
+
 // Privacy.
 $string['privacy:metadata']                           = 'Plugin VBS Schedule lưu trữ cài đặt hiển thị của người dùng (chế độ xem, bộ lọc loại sự kiện).';
 $string['privacy:metadata:vbs_schedule_pref']         = 'Cài đặt hiển thị lịch của từng người dùng';

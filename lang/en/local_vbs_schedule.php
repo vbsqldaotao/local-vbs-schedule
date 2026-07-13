@@ -39,6 +39,36 @@ $string['err_daterange']      = 'Date range must not exceed 90 days.';
 $string['err_dateinvalid']    = 'dateto must be greater than or equal to datefrom.';
 $string['err_timestamprange'] = 'Timestamps must be positive integers.';
 
+// Filter bar (Task 3.5).
+$string['filtercourse']  = 'Course';
+$string['allcourses']    = 'All courses';
+$string['filtertype']    = 'Event type';
+$string['typeboth']      = 'Both';
+$string['typeclass']     = 'Classes';
+$string['typeexam']      = 'Exams';
+$string['datefrom']      = 'From';
+$string['dateto']        = 'To';
+$string['applyfilter']   = 'Apply filter';
+
+// View toggle (Task 3.4).
+$string['viewmode']      = 'View';
+$string['viewmonth']     = 'Month';
+$string['viewweek']      = 'Week';
+$string['viewlist']      = 'List';
+$string['navprev']       = 'Previous period';
+$string['navnext']       = 'Next period';
+$string['navtoday']      = 'Today';
+
+// CBQL view (Task 3.6).
+$string['instructortitle']        = 'Instructor Schedule (CBQL)';
+$string['cbqlview']               = 'CBQL View';
+$string['instructor']             = 'Instructor';
+$string['chooseinstructor']       = '— Choose an instructor —';
+$string['noinstructorsessions']   = 'No teaching sessions found for this instructor in the selected date range.';
+$string['date']                   = 'Date';
+$string['location']               = 'Location';
+$string['backtocalendar']         = 'Back to My Schedule';
+
 // Privacy.
 $string['privacy:metadata']                           = 'The VBS Schedule plugin stores user preferences (view mode, event type toggles).';
 $string['privacy:metadata:vbs_schedule_pref']         = 'Per-user schedule display preferences';

@@ -1,0 +1,244 @@
+/* =========================================================
+   VBS Schedule — Calendar & Instructor view styles
+   ========================================================= */
+
+/* ── Month view ────────────────────────────────────────── */
+
+.vbs-month-view {
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    overflow: hidden;
+}
+
+.vbs-month-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.vbs-month-dayname {
+    text-align: center;
+    padding: .5rem .25rem;
+    font-weight: 600;
+    font-size: .75rem;
+    color: #6c757d;
+}
+
+.vbs-month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+}
+
+.vbs-month-cell {
+    min-height: 96px;
+    border-right: 1px solid #dee2e6;
+    border-bottom: 1px solid #dee2e6;
+    padding: .3rem;
+    overflow: hidden;
+    vertical-align: top;
+}
+
+.vbs-month-cell:nth-child(7n) {
+    border-right: none;
+}
+
+.vbs-month-cell--other {
+    background: #f8f9fa;
+}
+
+.vbs-month-cell--today {
+    background: #eff6ff;
+}
+
+.vbs-month-cell-day {
+    font-size: .8rem;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: .2rem;
+    line-height: 1.6rem;
+    width: 1.6rem;
+    text-align: center;
+}
+
+.vbs-today-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    background: #0d6efd;
+    color: #fff !important;
+    border-radius: 50%;
+    font-weight: 700;
+}
+
+.vbs-event-pill {
+    border-radius: 3px;
+    padding: 1px 4px;
+    margin-bottom: 2px;
+    cursor: default;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.vbs-event-pill-text {
+    font-size: .68rem;
+    color: #fff;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    display: block;
+    white-space: nowrap;
+}
+
+.vbs-event-more {
+    font-size: .68rem;
+    color: #6c757d;
+    padding-left: 2px;
+}
+
+/* ── Week view ─────────────────────────────────────────── */
+
+.vbs-week-view {
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    overflow: hidden;
+}
+
+.vbs-week-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.vbs-week-col-header {
+    text-align: center;
+    padding: .4rem .25rem;
+    border-right: 1px solid #dee2e6;
+}
+
+.vbs-week-col-header:last-child {
+    border-right: none;
+}
+
+.vbs-today-header {
+    background: #eff6ff;
+}
+
+.vbs-week-dayname {
+    font-size: .72rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+}
+
+.vbs-week-daynum {
+    font-size: 1rem;
+    font-weight: 500;
+    margin: .1rem auto 0;
+    width: 1.6rem;
+    text-align: center;
+    line-height: 1.6rem;
+}
+
+.vbs-week-body {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    min-height: 160px;
+}
+
+.vbs-week-col {
+    padding: .3rem;
+    border-right: 1px solid #dee2e6;
+    min-height: 160px;
+}
+
+.vbs-week-col:last-child {
+    border-right: none;
+}
+
+.vbs-week-event {
+    background: #f8f9fa;
+    border-radius: 4px;
+    padding: .25rem .35rem;
+    margin-bottom: .3rem;
+    font-size: .72rem;
+}
+
+.vbs-week-event-time {
+    color: #6c757d;
+    font-size: .65rem;
+    margin-bottom: .1rem;
+}
+
+.vbs-week-event-title {
+    font-weight: 500;
+    word-break: break-word;
+    line-height: 1.3;
+}
+
+.vbs-week-event-loc {
+    color: #6c757d;
+    font-size: .65rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: .1rem;
+}
+
+/* ── Calendar container ────────────────────────────────── */
+
+.vbs-calendar-container {
+    min-height: 200px;
+}
+
+/* ── Empty state ────────────────────────────────────────── */
+
+.vbs-empty-state {
+    color: #6c757d;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+
+@media (max-width: 767.98px) {
+    .vbs-month-cell {
+        min-height: 56px;
+        padding: .15rem;
+    }
+
+    .vbs-month-dayname {
+        font-size: .6rem;
+        padding: .3rem .05rem;
+    }
+
+    .vbs-month-cell-day,
+    .vbs-today-badge {
+        font-size: .7rem;
+        width: 1.3rem;
+        height: 1.3rem;
+        line-height: 1.3rem;
+    }
+
+    .vbs-event-pill {
+        display: none;  /* too cramped on mobile — show dot only if desired */
+    }
+
+    .vbs-week-event-title,
+    .vbs-week-event-time,
+    .vbs-week-event-loc {
+        font-size: .6rem;
+    }
+}
+
+@media (max-width: 479.98px) {
+    /* Below 480 px: show day number only in month cells */
+    .vbs-month-cell {
+        min-height: 36px;
+    }
+
+    .vbs-event-more {
+        display: none;
+    }
+}

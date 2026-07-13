@@ -25,16 +25,28 @@
 defined('MOODLE_INTERNAL') || die();
 
 $functions = [
+
+    // Returns combined class + exam events for a user within a date range.
     'local_vbs_schedule_get_events' => [
-        'classname'   => 'local_vbs_schedule\external\get_events',
-        'methodname'  => 'execute',
-        'description' => 'Return class and exam events for a given user and date range.',
-        'type'        => 'read',
-        'ajax'        => true,
+        'classname'    => 'local_vbs_schedule\external\get_events',
+        'methodname'   => 'execute',
+        'description'  => 'Return class and exam events for a given user and date range.',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/vbs_schedule:view',
+    ],
+
+    // Persists the user's calendar view preference (view_mode, show_class, show_exam).
+    'local_vbs_schedule_save_pref' => [
+        'classname'    => 'local_vbs_schedule\external\save_pref',
+        'methodname'   => 'execute',
+        'description'  => "Upsert the current user's calendar view preference.",
+        'type'         => 'write',
+        'ajax'         => true,
         'capabilities' => 'local/vbs_schedule:view',
     ],
 ];
 
-// No named external service block needed. The function is callable via any service
-// that grants it (e.g. moodle_mobile_app). Add $services only if a dedicated,
-// separately permission-managed service is required.
+// No named external service block needed. Both functions are callable via AJAX
+// (ajax: true) from any session-authenticated Moodle page. Add $services only
+// if a dedicated, separately permission-managed service is required.

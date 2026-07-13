@@ -1,0 +1,148 @@
+{{!
+    @template local_vbs_schedule/calendar
+
+    Calendar page: filter bar (Task 3.5) + view toggle + calendar container (Task 3.4).
+
+    Context variables:
+    - viewmonth {bool}       Current view is month
+    - viewweek  {bool}       Current view is week
+    - viewlist  {bool}       Current view is list
+    - typeboth  {bool}       Both class + exam selected
+    - typeclass {bool}       Only class selected
+    - typeexam  {bool}       Only exam selected
+    - courseoptions {array}  [{id, name}] Enrolled courses
+    - hascbql   {bool}       User has viewall capability → show CBQL link
+    - instructorurl {string} URL to instructor.php
+}}
+<div class="vbs-schedule" data-region="vbs-schedule-calendar">
+
+    {{! ── Filter bar (Task 3.5) ──────────────────────────────── }}
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <div class="row align-items-end g-2">
+
+                <div class="col-12 col-sm-6 col-md-3">
+                    <label for="vbs-course-filter" class="form-label small mb-1">
+                        {{#str}}filtercourse, local_vbs_schedule{{/str}}
+                    </label>
+                    <select class="form-select form-select-sm" id="vbs-course-filter" data-filter="course">
+                        <option value="0">{{#str}}allcourses, local_vbs_schedule{{/str}}</option>
+                        {{#courseoptions}}
+                        <option value="{{id}}">{{name}}</option>
+                        {{/courseoptions}}
+                    </select>
+                </div>
+
+                <div class="col-12 col-sm-6 col-md-3">
+                    <label class="form-label small mb-1 d-block">
+                        {{#str}}filtertype, local_vbs_schedule{{/str}}
+                    </label>
+                    <div class="btn-group btn-group-sm w-100" role="group"
+                         aria-label="{{#str}}filtertype, local_vbs_schedule{{/str}}">
+                        <input type="radio" class="btn-check" name="vbs-type" id="type-both"
+                               value="both" {{#typeboth}}checked{{/typeboth}}>
+                        <label class="btn btn-outline-secondary" for="type-both">
+                            {{#str}}typeboth, local_vbs_schedule{{/str}}
+                        </label>
+                        <input type="radio" class="btn-check" name="vbs-type" id="type-class"
+                               value="class" {{#typeclass}}checked{{/typeclass}}>
+                        <label class="btn btn-outline-primary" for="type-class">
+                            {{#str}}typeclass, local_vbs_schedule{{/str}}
+                        </label>
+                        <input type="radio" class="btn-check" name="vbs-type" id="type-exam"
+                               value="exam" {{#typeexam}}checked{{/typeexam}}>
+                        <label class="btn btn-outline-danger" for="type-exam">
+                            {{#str}}typeexam, local_vbs_schedule{{/str}}
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-2">
+                    <label for="vbs-datefrom" class="form-label small mb-1">
+                        {{#str}}datefrom, local_vbs_schedule{{/str}}
+                    </label>
+                    <input type="date" class="form-control form-control-sm" id="vbs-datefrom"
+                           data-filter="datefrom">
+                </div>
+
+                <div class="col-6 col-md-2">
+                    <label for="vbs-dateto" class="form-label small mb-1">
+                        {{#str}}dateto, local_vbs_schedule{{/str}}
+                    </label>
+                    <input type="date" class="form-control form-control-sm" id="vbs-dateto"
+                           data-filter="dateto">
+                </div>
+
+                <div class="col-12 col-md-2">
+                    <button type="button" class="btn btn-primary btn-sm w-100"
+                            data-action="apply-filter">
+                        {{#str}}applyfilter, local_vbs_schedule{{/str}}
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    {{! ── Toolbar: view toggle + navigation ─────────────────── }}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+
+        <div class="btn-group btn-group-sm" role="group"
+             aria-label="{{#str}}viewmode, local_vbs_schedule{{/str}}">
+            <input type="radio" class="btn-check" name="vbs-viewmode" id="view-month"
+                   value="month" {{#viewmonth}}checked{{/viewmonth}}>
+            <label class="btn btn-outline-secondary" for="view-month">
+                <i class="fa fa-calendar" aria-hidden="true"></i>
+                {{#str}}viewmonth, local_vbs_schedule{{/str}}
+            </label>
+            <input type="radio" class="btn-check" name="vbs-viewmode" id="view-week"
+                   value="week" {{#viewweek}}checked{{/viewweek}}>
+            <label class="btn btn-outline-secondary" for="view-week">
+                <i class="fa fa-calendar-week" aria-hidden="true"></i>
+                {{#str}}viewweek, local_vbs_schedule{{/str}}
+            </label>
+            <input type="radio" class="btn-check" name="vbs-viewmode" id="view-list"
+                   value="list" {{#viewlist}}checked{{/viewlist}}>
+            <label class="btn btn-outline-secondary" for="view-list">
+                <i class="fa fa-list" aria-hidden="true"></i>
+                {{#str}}viewlist, local_vbs_schedule{{/str}}
+            </label>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm"
+                    data-action="nav-prev"
+                    aria-label="{{#str}}navprev, local_vbs_schedule{{/str}}">
+                <i class="fa fa-chevron-left" aria-hidden="true"></i>
+            </button>
+            <span data-region="current-period" class="fw-semibold px-1"></span>
+            <button type="button" class="btn btn-outline-secondary btn-sm"
+                    data-action="nav-next"
+                    aria-label="{{#str}}navnext, local_vbs_schedule{{/str}}">
+                <i class="fa fa-chevron-right" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="btn btn-outline-primary btn-sm"
+                    data-action="nav-today">
+                {{#str}}navtoday, local_vbs_schedule{{/str}}
+            </button>
+        </div>
+
+        {{#hascbql}}
+        <a href="{{instructorurl}}" class="btn btn-outline-secondary btn-sm">
+            <i class="fa fa-user-tie" aria-hidden="true"></i>
+            {{#str}}cbqlview, local_vbs_schedule{{/str}}
+        </a>
+        {{/hascbql}}
+
+    </div>
+
+    {{! ── Calendar container — JS fills this ─────────────────── }}
+    <div data-region="calendar-container" class="vbs-calendar-container">
+        <div class="d-flex justify-content-center p-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">{{#str}}loading, core{{/str}}</span>
+            </div>
+        </div>
+    </div>
+
+</div>
