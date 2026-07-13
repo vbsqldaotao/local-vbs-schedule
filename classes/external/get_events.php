@@ -27,7 +27,16 @@ use context_system;
  * External function: get_events
  *
  * Returns combined class (facetoface) and exam events for a given user
- * within the specified date range. Enforces SEC-01 through SEC-16 security rules.
+ * within the specified date range.
+ *
+ * Schema notes (mod_facetoface):
+ *   - timestart/timefinish live in {facetoface_sessions_dates}, not {facetoface_sessions}.
+ *   - statuscode lives in {facetoface_signups_status} (superceded=0), not in {facetoface_signups}.
+ *   - location lives in {facetoface_session_data} keyed via {facetoface_session_field}.shortname='location'.
+ *   - trainers live in {facetoface_session_roles}; a session may have multiple trainers.
+ *   - enrolment must be verified through {enrol} → {user_enrolments} tied to the specific course.
+ *
+ * Security rules enforced: SEC-01, SEC-08, SEC-09, SEC-12, SEC-13, SEC-15, SEC-16.
  *
  * @package     local_vbs_schedule
  * @copyright   2026 VBS Đào tạo
@@ -48,7 +57,7 @@ class get_events extends external_api {
             'userid'   => new external_value(PARAM_INT, 'User ID; 0 = current user', VALUE_DEFAULT, 0),
             'datefrom' => new external_value(PARAM_INT, 'Start of range (unix timestamp)'),
             'dateto'   => new external_value(PARAM_INT, 'End of range (unix timestamp)'),
-            'courseid' => new external_value(PARAM_INT, 'Filter by course; 0 = all', VALUE_DEFAULT, 0),
+            'courseid' => new external_value(PARAM_INT, 'Filter by course; 0 = all (ignored for exam type)', VALUE_DEFAULT, 0),
             'types'    => new external_multiple_structure(
                 new external_value(PARAM_ALPHA, 'Event type: class or exam'),
                 'Event types to include',
@@ -61,11 +70,11 @@ class get_events extends external_api {
     /**
      * Return schedule events for the requested user and date range.
      *
-     * @param int    $userid   0 = current user
-     * @param int    $datefrom Unix timestamp
-     * @param int    $dateto   Unix timestamp
-     * @param int    $courseid 0 = all courses
-     * @param array  $types    Subset of ['class','exam']
+     * @param int   $userid   0 = current user
+     * @param int   $datefrom Unix timestamp
+     * @param int   $dateto   Unix timestamp
+     * @param int   $courseid 0 = all courses (exam events ignore this filter — see docblock)
+     * @param array $types    Subset of ['class','exam']
      * @return array
      */
     public static function execute(int $userid, int $datefrom, int $dateto,
@@ -121,107 +130,161 @@ class get_events extends external_api {
 
         // --- Class events (facetoface) ---
         if (in_array('class', $types, true)) {
-            $classparams = [
-                'userid'   => $userid,
-                'datefrom' => $datefrom,
-                'dateto'   => $dateto,
-            ];
-
-            $coursesql = '';
-            if ($courseid > 0) {
-                $coursesql = 'AND c.id = :courseid';
-                $classparams['courseid'] = $courseid;
-            }
-
-            $sql = "SELECT CONCAT('class_', fs.id) AS event_id,
-                           'class'                  AS event_type,
-                           ff.name                  AS course_name,
-                           c.id                     AS courseid,
-                           fs.timestart,
-                           fs.timefinish            AS endtime,
-                           fs.location,
-                           u.firstname,
-                           u.lastname
-                      FROM {facetoface_sessions} fs
-                      JOIN {facetoface} ff       ON ff.id  = fs.facetoface
-                      JOIN {course} c            ON c.id   = ff.course
-                      JOIN {facetoface_signups} fsi
-                                                 ON fsi.sessionid = fs.id
-                                                AND fsi.userid    = :userid
-                                                AND fsi.statuscode >= 70
-                      JOIN {user_enrolments} ue  ON ue.userid = fsi.userid
-                                                AND ue.status  = 0
-                      LEFT JOIN {user} u         ON u.id = fs.trainerid
-                     WHERE fs.timestart  >= :datefrom
-                       AND fs.timefinish <= :dateto
-                       $coursesql
-                     ORDER BY fs.timestart ASC";
-
-            $rows = $DB->get_records_sql($sql, $classparams);
-            foreach ($rows as $row) {
-                $instructor = trim(($row->firstname ?? '') . ' ' . ($row->lastname ?? ''));
-                $events[] = [
-                    'id'         => $row->event_id,
-                    'type'       => 'class',
-                    'title'      => $row->course_name,
-                    'courseid'   => (int) $row->courseid,
-                    'coursename' => $row->course_name,
-                    'starttime'  => (int) $row->timestart,
-                    'endtime'    => (int) $row->endtime,
-                    'location'   => $row->location ?? '',
-                    'instructor' => $instructor,
-                    'color'      => '#3b82f6',
-                    'status'     => self::resolve_class_status((int) $row->timestart, (int) $row->endtime),
-                ];
-            }
+            $events = array_merge($events, self::fetch_class_events($DB, $userid, $datefrom, $dateto, $courseid));
         }
 
         // --- Exam events (vbs_exam) ---
+        // Note: vbs_exam schema has no FK to mdl_course, so courseid filter does not apply.
         if (in_array('exam', $types, true)) {
-            $examparams = [
-                'userid'   => $userid,
-                'datefrom' => $datefrom,
-                'dateto'   => $dateto,
-            ];
-
-            $sql = "SELECT CONCAT('exam_', es.id) AS event_id,
-                           'exam'                  AS event_type,
-                           et.name                 AS topic_name,
-                           es.name                 AS session_name,
-                           es.starttime,
-                           es.endtime,
-                           es.location,
-                           es.status
-                      FROM {vbs_exam_session} es
-                      JOIN {vbs_exam_topic} et      ON et.id = es.topicid
-                      JOIN {vbs_exam_enrolment} ee  ON ee.sessionid = es.id
-                                                   AND ee.userid    = :userid
-                     WHERE es.starttime >= :datefrom
-                       AND es.endtime   <= :dateto
-                     ORDER BY es.starttime ASC";
-
-            $rows = $DB->get_records_sql($sql, $examparams);
-            foreach ($rows as $row) {
-                $events[] = [
-                    'id'         => $row->event_id,
-                    'type'       => 'exam',
-                    'title'      => $row->topic_name . ' — ' . $row->session_name,
-                    'courseid'   => 0,
-                    'coursename' => $row->topic_name,
-                    'starttime'  => (int) $row->starttime,
-                    'endtime'    => (int) $row->endtime,
-                    'location'   => $row->location ?? '',
-                    'instructor' => '',
-                    'color'      => '#ef4444',
-                    'status'     => $row->status,
-                ];
-            }
+            $events = array_merge($events, self::fetch_exam_events($DB, $userid, $datefrom, $dateto));
         }
 
         // Sort combined list by starttime ascending.
         usort($events, fn($a, $b) => $a['starttime'] <=> $b['starttime']);
 
         return ['events' => $events, 'total' => count($events)];
+    }
+
+    /**
+     * Fetch class events from mod_facetoface using the correct schema.
+     *
+     * Key schema facts:
+     *   - {facetoface_sessions_dates} holds timestart/timefinish (BUG-01).
+     *   - {facetoface_signups_status} holds statuscode with superceded=0 (BUG-02).
+     *   - Active enrolment verified through {enrol} → {user_enrolments} scoped to the course (BUG-03).
+     *   - location is a custom field in {facetoface_session_data}/{facetoface_session_field}.
+     *   - trainers are in {facetoface_session_roles}; fetched via correlated subquery (1-N safe).
+     *
+     * @param \moodle_database $DB
+     * @param int $userid
+     * @param int $datefrom
+     * @param int $dateto
+     * @param int $courseid 0 = all
+     * @return array
+     */
+    private static function fetch_class_events(\moodle_database $DB, int $userid,
+                                               int $datefrom, int $dateto, int $courseid): array {
+        $params = [
+            'userid'      => $userid,
+            'enroluserid' => $userid, // same value — named param cannot be reused in one query.
+            'datefrom'    => $datefrom,
+            'dateto'      => $dateto,
+        ];
+
+        $coursesql = '';
+        if ($courseid > 0) {
+            $coursesql = 'AND c.id = :courseid';
+            $params['courseid'] = $courseid;
+        }
+
+        // Correlated subqueries for location and instructor avoid duplicate rows from 1-N joins.
+        $sql = "SELECT CONCAT('class_', fs.id, '_', fsd.id) AS event_id,
+                       'class'                               AS event_type,
+                       ff.name                               AS course_name,
+                       c.id                                  AS courseid,
+                       fsd.timestart,
+                       fsd.timefinish                        AS endtime,
+                       (SELECT sd.data
+                          FROM {facetoface_session_data} sd
+                          JOIN {facetoface_session_field} sf ON sf.id = sd.fieldid
+                                                            AND sf.shortname = 'location'
+                         WHERE sd.sessionid = fs.id
+                         LIMIT 1)                            AS location,
+                       (SELECT CONCAT(u2.firstname, ' ', u2.lastname)
+                          FROM {facetoface_session_roles} sr
+                          JOIN {user} u2 ON u2.id = sr.userid
+                         WHERE sr.sessionid = fs.id
+                         LIMIT 1)                            AS instructor
+                  FROM {facetoface_sessions} fs
+                  JOIN {facetoface_sessions_dates} fsd ON fsd.sessionid = fs.id
+                  JOIN {facetoface} ff                 ON ff.id = fs.facetoface
+                  JOIN {course} c                      ON c.id = ff.course
+                  JOIN {facetoface_signups} fsi        ON fsi.sessionid = fs.id
+                                                      AND fsi.userid    = :userid
+                  JOIN {facetoface_signups_status} fss ON fss.signupid  = fsi.id
+                                                      AND fss.superceded = 0
+                                                      AND fss.statuscode >= 70
+                 WHERE fsd.timestart  >= :datefrom
+                   AND fsd.timefinish <= :dateto
+                   AND EXISTS (
+                         SELECT 1
+                           FROM {enrol} e
+                           JOIN {user_enrolments} ue ON ue.enrolid = e.id
+                          WHERE e.courseid  = c.id
+                            AND e.status    = 0
+                            AND ue.userid   = :enroluserid
+                            AND ue.status   = 0
+                       )
+                   $coursesql
+                 ORDER BY fsd.timestart ASC";
+
+        $rows   = $DB->get_records_sql($sql, $params);
+        $result = [];
+        foreach ($rows as $row) {
+            $result[] = [
+                'id'         => $row->event_id,
+                'type'       => 'class',
+                'title'      => $row->course_name,
+                'courseid'   => (int) $row->courseid,
+                'coursename' => $row->course_name,
+                'starttime'  => (int) $row->timestart,
+                'endtime'    => (int) $row->endtime,
+                'location'   => $row->location ?? '',
+                'instructor' => $row->instructor ?? '',
+                'color'      => '#3b82f6',
+                'status'     => self::resolve_class_status((int) $row->timestart, (int) $row->endtime),
+            ];
+        }
+        return $result;
+    }
+
+    /**
+     * Fetch exam events from local_vbs_exam tables.
+     *
+     * Note: vbs_exam schema has no direct FK to mdl_course; courseid filter is not applied here.
+     *
+     * @param \moodle_database $DB
+     * @param int $userid
+     * @param int $datefrom
+     * @param int $dateto
+     * @return array
+     */
+    private static function fetch_exam_events(\moodle_database $DB, int $userid,
+                                              int $datefrom, int $dateto): array {
+        $sql = "SELECT CONCAT('exam_', es.id) AS event_id,
+                       'exam'                  AS event_type,
+                       et.name                 AS topic_name,
+                       es.name                 AS session_name,
+                       es.starttime,
+                       es.endtime,
+                       es.location,
+                       es.status
+                  FROM {vbs_exam_session} es
+                  JOIN {vbs_exam_topic} et      ON et.id = es.topicid
+                  JOIN {vbs_exam_enrolment} ee  ON ee.sessionid = es.id
+                                               AND ee.userid    = :userid
+                 WHERE es.starttime >= :datefrom
+                   AND es.endtime   <= :dateto
+                 ORDER BY es.starttime ASC";
+
+        $rows   = $DB->get_records_sql($sql, ['userid' => $userid, 'datefrom' => $datefrom, 'dateto' => $dateto]);
+        $result = [];
+        foreach ($rows as $row) {
+            $result[] = [
+                'id'         => $row->event_id,
+                'type'       => 'exam',
+                'title'      => $row->topic_name . ' — ' . $row->session_name,
+                'courseid'   => 0,
+                'coursename' => $row->topic_name,
+                'starttime'  => (int) $row->starttime,
+                'endtime'    => (int) $row->endtime,
+                'location'   => $row->location ?? '',
+                'instructor' => '',
+                'color'      => '#ef4444',
+                'status'     => $row->status,
+            ];
+        }
+        return $result;
     }
 
     /**
@@ -233,7 +296,7 @@ class get_events extends external_api {
         return new external_single_structure([
             'events' => new external_multiple_structure(
                 new external_single_structure([
-                    'id'         => new external_value(PARAM_TEXT, 'Unique event ID, e.g. class_101 or exam_5'),
+                    'id'         => new external_value(PARAM_TEXT, 'Unique event ID, e.g. class_101_3 or exam_5'),
                     'type'       => new external_value(PARAM_ALPHA, 'class or exam'),
                     'title'      => new external_value(PARAM_TEXT, 'Display title'),
                     'courseid'   => new external_value(PARAM_INT,  'Moodle course ID (0 for exams)'),
@@ -255,7 +318,7 @@ class get_events extends external_api {
      *
      * @param int $start Unix timestamp
      * @param int $end   Unix timestamp
-     * @return string
+     * @return string upcoming|ongoing|past
      */
     private static function resolve_class_status(int $start, int $end): string {
         $now = time();
