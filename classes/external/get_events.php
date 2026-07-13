@@ -135,6 +135,11 @@ class get_events extends external_api {
 
         // --- Exam events (vbs_exam) ---
         // Note: vbs_exam schema has no FK to mdl_course, so courseid filter does not apply.
+        // Schema contract with local_vbs_exam (R-03 / VBS-415):
+        //   vbs_exam_session: id, topicid, name, starttime, endtime, location, status
+        //   vbs_exam_enrolment: sessionid, userid
+        //   vbs_exam_topic: id, name
+        // If local_vbs_exam changes these columns, update the SQL here.
         if (in_array('exam', $types, true)) {
             $events = array_merge($events, self::fetch_exam_events($DB, $userid, $datefrom, $dateto));
         }
