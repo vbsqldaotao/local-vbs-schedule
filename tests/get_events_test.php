@@ -22,7 +22,7 @@ use core_external\external_api;
 /**
  * PHPUnit tests for local_vbs_schedule\external\get_events.
  *
- * Covers: SEC-01, SEC-08, SEC-09, EDGE-01
+ * Covers: SEC-01, SEC-08, SEC-09, EDGE-01, CLASS-01–CLASS-04
  *
  * Schema used:
  *   facetoface_sessions         — id, facetoface, capacity, allowoverbook, details,
@@ -375,6 +375,135 @@ final class get_events_test extends \advanced_testcase {
 
         $this->expectException(\invalid_parameter_exception::class);
         get_events::execute(0, self::BASE_TIME + 86400, self::BASE_TIME);
+    }
+
+    // -------------------------------------------------------------------------
+    // CLASS SQL end-to-end tests (W-01 fix)
+    // -------------------------------------------------------------------------
+
+    /**
+     * CLASS-01: a booked facetoface signup (statuscode=70) returns one class event
+     * with the correct fields (type, title, starttime, endtime).
+     * Exercises the full JOIN chain: facetoface_sessions → sessions_dates →
+     * signups → signups_status → enrol → user_enrolments.
+     */
+    public function test_class_event_returned_for_booked_signup(): void {
+        $this->resetAfterTest();
+
+        $student = self::getDataGenerator()->create_user();
+        $this->setUser($student);
+        $this->getDataGenerator()->role_assign(
+            $this->get_role_id('student'), $student->id, \context_system::instance()->id
+        );
+
+        $from  = self::BASE_TIME;
+        $to    = $from + 7 * 86400;
+        $start = $from + 3600;
+        $end   = $from + 7200;
+
+        $this->create_facetoface_session($student->id, $start, $end, 70);
+
+        $result = get_events::execute(0, $from, $to, 0, ['class']);
+        $result = external_api::clean_returnvalue(get_events::execute_returns(), $result);
+
+        $this->assertSame(1, $result['total']);
+        $event = $result['events'][0];
+        $this->assertSame('class', $event['type']);
+        $this->assertStringStartsWith('class_', $event['id']);
+        $this->assertSame($start, $event['starttime']);
+        $this->assertSame($end, $event['endtime']);
+        $this->assertSame('#3b82f6', $event['color']);
+    }
+
+    /**
+     * CLASS-02: a session with 2 dates in range returns 2 events with distinct IDs
+     * (class_<sessionid>_<dateid1> vs class_<sessionid>_<dateid2>).
+     */
+    public function test_class_session_with_two_dates_returns_two_events(): void {
+        global $DB;
+        $this->resetAfterTest();
+
+        $student = self::getDataGenerator()->create_user();
+        $this->setUser($student);
+        $this->getDataGenerator()->role_assign(
+            $this->get_role_id('student'), $student->id, \context_system::instance()->id
+        );
+
+        $from = self::BASE_TIME;
+        $to   = $from + 7 * 86400;
+
+        // Create the session (adds one date automatically at $from+3600 → $from+7200).
+        $sessionid = $this->create_facetoface_session($student->id, $from + 3600, $from + 7200, 70);
+
+        // Add a second date to the same session — same range, different slot.
+        $DB->insert_record('facetoface_sessions_dates', (object)[
+            'sessionid'  => $sessionid,
+            'timestart'  => $from + 86400,
+            'timefinish' => $from + 90000,
+        ]);
+
+        $result = get_events::execute(0, $from, $to, 0, ['class']);
+        $result = external_api::clean_returnvalue(get_events::execute_returns(), $result);
+
+        $this->assertSame(2, $result['total'], 'Two dates should produce two events');
+        $ids = array_column($result['events'], 'id');
+        $this->assertCount(2, array_unique($ids), 'Event IDs must be distinct');
+        $this->assertStringStartsWith('class_', $ids[0]);
+        $this->assertStringStartsWith('class_', $ids[1]);
+    }
+
+    /**
+     * CLASS-03: a signup with statuscode < 70 (e.g. 10 = pending/cancelled)
+     * must NOT appear in the results — only statuscode >= 70 is considered booked.
+     */
+    public function test_class_signup_below_statuscode_70_excluded(): void {
+        $this->resetAfterTest();
+
+        $student = self::getDataGenerator()->create_user();
+        $this->setUser($student);
+        $this->getDataGenerator()->role_assign(
+            $this->get_role_id('student'), $student->id, \context_system::instance()->id
+        );
+
+        $from = self::BASE_TIME;
+        $to   = $from + 7 * 86400;
+
+        // statuscode=10 = pending / not yet booked.
+        $this->create_facetoface_session($student->id, $from + 3600, $from + 7200, 10);
+
+        $result = get_events::execute(0, $from, $to, 0, ['class']);
+        $result = external_api::clean_returnvalue(get_events::execute_returns(), $result);
+
+        $this->assertSame(0, $result['total'], 'Pending signup (statuscode=10) must not appear');
+    }
+
+    /**
+     * CLASS-04: a user without an active enrolment for the course must NOT see
+     * the class event — verifies the EXISTS enrolment guard (BUG-03 regression).
+     */
+    public function test_class_event_excluded_without_course_enrolment(): void {
+        global $DB;
+        $this->resetAfterTest();
+
+        $student = self::getDataGenerator()->create_user();
+        $this->setUser($student);
+        $this->getDataGenerator()->role_assign(
+            $this->get_role_id('student'), $student->id, \context_system::instance()->id
+        );
+
+        $from = self::BASE_TIME;
+        $to   = $from + 7 * 86400;
+
+        // Create session (which also adds enrolment).
+        $this->create_facetoface_session($student->id, $from + 3600, $from + 7200, 70);
+
+        // Suspend all active enrolments to simulate "not enrolled".
+        $DB->set_field('user_enrolments', 'status', 1, ['userid' => $student->id]);
+
+        $result = get_events::execute(0, $from, $to, 0, ['class']);
+        $result = external_api::clean_returnvalue(get_events::execute_returns(), $result);
+
+        $this->assertSame(0, $result['total'], 'Suspended enrolment must not appear');
     }
 
     // -------------------------------------------------------------------------
