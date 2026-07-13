@@ -244,6 +244,7 @@ const bindEvents = () => {
             } else {
                 state.types = [input.value];
             }
+            savePref(); // W-01: persist type preference on every change
         });
     });
 
@@ -285,10 +286,22 @@ const navPrev = () => {
     if (state.viewmode === 'month') {
         if (state.month === 0) { state.month = 11; state.year--; }
         else { state.month--; }
+        // W-02: keep datefrom/dateto in sync so filter inputs reflect navigated month
+        const first = new Date(state.year, state.month, 1);
+        const last  = new Date(state.year, state.month + 1, 0);
+        state.datefrom = toUnixStart(first);
+        state.dateto   = toUnixEnd(last);
+        syncDateInputsFromState();
     } else if (state.viewmode === 'week') {
         const d = new Date(state.weekStart);
         d.setDate(d.getDate() - 7);
         state.weekStart = d;
+        // W-02: sync datefrom/dateto to the new week
+        const end = new Date(state.weekStart);
+        end.setDate(end.getDate() + 6);
+        state.datefrom = toUnixStart(state.weekStart);
+        state.dateto   = toUnixEnd(end);
+        syncDateInputsFromState();
     } else {
         const span = state.dateto - state.datefrom;
         state.datefrom -= (span + 1);
@@ -302,10 +315,22 @@ const navNext = () => {
     if (state.viewmode === 'month') {
         if (state.month === 11) { state.month = 0; state.year++; }
         else { state.month++; }
+        // W-02: keep datefrom/dateto in sync so filter inputs reflect navigated month
+        const first = new Date(state.year, state.month, 1);
+        const last  = new Date(state.year, state.month + 1, 0);
+        state.datefrom = toUnixStart(first);
+        state.dateto   = toUnixEnd(last);
+        syncDateInputsFromState();
     } else if (state.viewmode === 'week') {
         const d = new Date(state.weekStart);
         d.setDate(d.getDate() + 7);
         state.weekStart = d;
+        // W-02: sync datefrom/dateto to the new week
+        const end = new Date(state.weekStart);
+        end.setDate(end.getDate() + 6);
+        state.datefrom = toUnixStart(state.weekStart);
+        state.dateto   = toUnixEnd(end);
+        syncDateInputsFromState();
     } else {
         const span = state.dateto - state.datefrom;
         state.datefrom += (span + 1);
