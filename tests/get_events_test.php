@@ -24,6 +24,15 @@ use core_external\external_api;
  *
  * Covers: SEC-01, SEC-08, SEC-09, EDGE-01
  *
+ * Schema used:
+ *   facetoface_sessions         — id, facetoface, capacity, allowoverbook, details,
+ *                                  datetimeknown, duration, normalcost, discountcost,
+ *                                  allowcancellations, visible, timecreated, timemodified
+ *   facetoface_sessions_dates   — id, sessionid, timestart, timefinish
+ *   facetoface_signups          — id, sessionid, userid, mailedreminder, discountcode, notificationtype
+ *   facetoface_signups_status   — id, signupid, statuscode, superceded, grade, note, advice,
+ *                                  createdby, timecreated
+ *
  * @package     local_vbs_schedule
  * @copyright   2026 VBS Đào tạo
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -32,16 +41,21 @@ use core_external\external_api;
  */
 final class get_events_test extends \advanced_testcase {
 
-    /** Base time used across fixtures. 2026-07-13 00:00:00 UTC. */
+    /** Base time used across fixtures: 2026-07-13 00:00:00 UTC. */
     private const BASE_TIME = 1752364800;
 
     /**
-     * Create a minimal facetoface signup chain so get_events returns a class event.
+     * Create a complete facetoface signup chain so get_events returns a class event.
      *
-     * @param int $userid    Student user id
-     * @param int $timestart Session start unix timestamp
-     * @param int $timefinish Session end unix timestamp
-     * @param int $statuscode Signup statuscode (default 70 = booked)
+     * Uses the actual mod_facetoface schema:
+     *   - timestart/timefinish in facetoface_sessions_dates (not facetoface_sessions)
+     *   - statuscode in facetoface_signups_status (not facetoface_signups)
+     *   - enrolment verified through enrol → user_enrolments tied to the course
+     *
+     * @param int $userid     Student user id
+     * @param int $timestart  Session date start unix timestamp
+     * @param int $timefinish Session date end unix timestamp
+     * @param int $statuscode Signup statuscode (70 = booked / attended)
      * @return int facetoface_sessions.id
      */
     private function create_facetoface_session(int $userid, int $timestart, int $timefinish,
@@ -51,55 +65,77 @@ final class get_events_test extends \advanced_testcase {
         // Course.
         $course = self::getDataGenerator()->create_course(['fullname' => 'Test Course']);
 
-        // Facetoface activity.
-        $ffid = $DB->insert_record('facetoface', (object)[
-            'course'         => $course->id,
-            'name'           => $course->fullname,
-            'intro'          => '',
-            'introformat'    => 1,
-            'timecreated'    => self::BASE_TIME,
-            'timemodified'   => self::BASE_TIME,
+        // Enrol the user in the course via 'manual' enrolment so the EXISTS check passes.
+        $enrolid = $DB->insert_record('enrol', (object)[
+            'enrol'        => 'manual',
+            'status'       => 0,
+            'courseid'     => $course->id,
+            'timecreated'  => self::BASE_TIME,
+            'timemodified' => self::BASE_TIME,
         ]);
-
-        // Session.
-        $sessionid = $DB->insert_record('facetoface_sessions', (object)[
-            'facetoface'  => $ffid,
-            'capacity'    => 100,
-            'allowoverbook' => 0,
-            'waitlisteveryone' => 0,
-            'duration'    => $timefinish - $timestart,
-            'normalcost'  => 0,
-            'discountcost' => 0,
-            'timestart'   => $timestart,
-            'timefinish'  => $timefinish,
-            'trainerid'   => 0,
-            'location'    => 'Room A',
-            'timecreated' => self::BASE_TIME,
+        $DB->insert_record('user_enrolments', (object)[
+            'status'       => 0,
+            'enrolid'      => $enrolid,
+            'userid'       => $userid,
+            'timestart'    => 0,
+            'timeend'      => 0,
+            'modifierid'   => 0,
+            'timecreated'  => self::BASE_TIME,
             'timemodified' => self::BASE_TIME,
         ]);
 
-        // Enrolment (active).
-        $DB->insert_record('user_enrolments', (object)[
-            'status'        => 0,
-            'enrolid'       => 0,
-            'userid'        => $userid,
-            'timestart'     => 0,
-            'timeend'       => 0,
-            'modifierid'    => 0,
-            'timecreated'   => self::BASE_TIME,
-            'timemodified'  => self::BASE_TIME,
+        // Facetoface activity.
+        $ffid = $DB->insert_record('facetoface', (object)[
+            'course'       => $course->id,
+            'name'         => 'Test Facetoface',
+            'intro'        => '',
+            'introformat'  => 1,
+            'timecreated'  => self::BASE_TIME,
+            'timemodified' => self::BASE_TIME,
+        ]);
+
+        // Session (no timestart/timefinish here — those go in sessions_dates).
+        $sessionid = $DB->insert_record('facetoface_sessions', (object)[
+            'facetoface'       => $ffid,
+            'capacity'         => 100,
+            'allowoverbook'    => 0,
+            'details'          => '',
+            'datetimeknown'    => 1,
+            'duration'         => $timefinish - $timestart,
+            'normalcost'       => 0,
+            'discountcost'     => 0,
+            'allowcancellations' => 1,
+            'visible'          => 1,
+            'timecreated'      => self::BASE_TIME,
+            'timemodified'     => self::BASE_TIME,
+        ]);
+
+        // Session date — this is where timestart/timefinish actually live.
+        $DB->insert_record('facetoface_sessions_dates', (object)[
+            'sessionid'  => $sessionid,
+            'timestart'  => $timestart,
+            'timefinish' => $timefinish,
         ]);
 
         // Signup.
-        $DB->insert_record('facetoface_signups', (object)[
-            'sessionid'    => $sessionid,
-            'userid'       => $userid,
-            'mailedreminder' => 0,
-            'discountcode' => '',
+        $signupid = $DB->insert_record('facetoface_signups', (object)[
+            'sessionid'        => $sessionid,
+            'userid'           => $userid,
+            'mailedreminder'   => 0,
+            'discountcode'     => '',
             'notificationtype' => 0,
-            'statuscode'   => $statuscode,
-            'timecreated'  => self::BASE_TIME,
-            'timemodified' => self::BASE_TIME,
+        ]);
+
+        // Signup status — statuscode lives here, not in facetoface_signups.
+        $DB->insert_record('facetoface_signups_status', (object)[
+            'signupid'    => $signupid,
+            'statuscode'  => $statuscode,
+            'superceded'  => 0,
+            'grade'       => null,
+            'note'        => '',
+            'advice'      => '',
+            'createdby'   => $userid,
+            'timecreated' => self::BASE_TIME,
         ]);
 
         return $sessionid;
@@ -111,14 +147,13 @@ final class get_events_test extends \advanced_testcase {
      * @param int    $userid
      * @param int    $starttime
      * @param int    $endtime
-     * @param string $status planned|open|closed
+     * @param string $status    planned|open|closed
      * @return int session id
      */
     private function create_exam_session(int $userid, int $starttime, int $endtime,
                                          string $status = 'planned'): int {
         global $DB;
 
-        // Exam group (required by topic FK).
         $groupid = $DB->insert_record('vbs_exam_group', (object)[
             'name'         => 'Group',
             'parentid'     => 0,
@@ -127,7 +162,6 @@ final class get_events_test extends \advanced_testcase {
             'timemodified' => self::BASE_TIME,
         ]);
 
-        // Exam topic.
         $topicid = $DB->insert_record('vbs_exam_topic', (object)[
             'groupid'      => $groupid,
             'name'         => 'Test Topic',
@@ -136,7 +170,6 @@ final class get_events_test extends \advanced_testcase {
             'timemodified' => self::BASE_TIME,
         ]);
 
-        // Exam session.
         $sessionid = $DB->insert_record('vbs_exam_session', (object)[
             'topicid'      => $topicid,
             'name'         => 'Session ' . $status,
@@ -149,12 +182,11 @@ final class get_events_test extends \advanced_testcase {
             'timemodified' => self::BASE_TIME,
         ]);
 
-        // Enrolment.
         $DB->insert_record('vbs_exam_enrolment', (object)[
-            'sessionid'   => $sessionid,
-            'userid'      => $userid,
-            'enrolled_by' => 0,
-            'source'      => 'manual',
+            'sessionid'    => $sessionid,
+            'userid'       => $userid,
+            'enrolled_by'  => 0,
+            'source'       => 'manual',
             'timeenrolled' => self::BASE_TIME,
         ]);
 
@@ -166,8 +198,7 @@ final class get_events_test extends \advanced_testcase {
     // -------------------------------------------------------------------------
 
     /**
-     * SEC-01: passing userid=0 returns events for the current logged-in user,
-     * not an empty or error result.
+     * SEC-01: passing userid=0 returns events for the current logged-in user.
      */
     public function test_sec01_userid_zero_resolves_to_current_user(): void {
         $this->resetAfterTest();
@@ -194,14 +225,13 @@ final class get_events_test extends \advanced_testcase {
     // -------------------------------------------------------------------------
 
     /**
-     * SEC-08: a plain student cannot request events for a different user — must
-     * receive required_capability_exception.
+     * SEC-08: a plain student cannot request events for a different user.
      */
     public function test_sec08_student_cannot_view_other_user(): void {
         $this->resetAfterTest();
 
-        $student  = self::getDataGenerator()->create_user();
-        $other    = self::getDataGenerator()->create_user();
+        $student = self::getDataGenerator()->create_user();
+        $other   = self::getDataGenerator()->create_user();
 
         $this->setUser($student);
         $this->getDataGenerator()->role_assign(
@@ -252,14 +282,14 @@ final class get_events_test extends \advanced_testcase {
         );
 
         $from = self::BASE_TIME;
-        $to   = $from + 91 * 86400; // 91 days — exceeds limit.
+        $to   = $from + 91 * 86400;
 
         $this->expectException(\invalid_parameter_exception::class);
         get_events::execute(0, $from, $to);
     }
 
     /**
-     * SEC-09: exactly 90-day window is accepted without exception.
+     * SEC-09: exactly 90-day window is accepted and returns any seeded events.
      */
     public function test_sec09_date_range_exactly_90_days_is_allowed(): void {
         $this->resetAfterTest();
@@ -273,19 +303,21 @@ final class get_events_test extends \advanced_testcase {
         $from = self::BASE_TIME;
         $to   = $from + 90 * 86400;
 
-        $result = get_events::execute(0, $from, $to);
+        // Seed 1 exam event within the range to verify the range is truly accepted.
+        $this->create_exam_session($student->id, $from + 3600, $from + 7200, 'planned');
+
+        $result = get_events::execute(0, $from, $to, 0, ['exam']);
         $result = external_api::clean_returnvalue(get_events::execute_returns(), $result);
 
-        $this->assertSame(0, $result['total']); // No fixtures — just checking no exception.
+        $this->assertSame(1, $result['total'], '90-day window should accept seeded event');
     }
 
     // -------------------------------------------------------------------------
-    // EDGE-01: user with no events in range returns empty list
+    // EDGE-01: empty results
     // -------------------------------------------------------------------------
 
     /**
-     * EDGE-01: a new user with no facetoface or exam records returns total=0
-     * and events=[].
+     * EDGE-01: a new user with no records returns total=0 and events=[].
      */
     public function test_edge01_new_user_no_records(): void {
         $this->resetAfterTest();
@@ -307,9 +339,9 @@ final class get_events_test extends \advanced_testcase {
     }
 
     /**
-     * EDGE-01 (optional types): requesting only 'class' returns no exam events.
+     * EDGE-01 (class-only filter): requesting only 'class' excludes exam events.
      */
-    public function test_edge01_types_filter_exam_only(): void {
+    public function test_edge01_types_filter_class_only(): void {
         $this->resetAfterTest();
 
         $student = self::getDataGenerator()->create_user();
