@@ -35,11 +35,6 @@ $functions = [
     ],
 ];
 
-$services = [
-    'local_vbs_schedule_get_events' => [
-        'functions' => ['local_vbs_schedule_get_events'],
-        'restrictedusers' => 0,
-        'enabled'         => 1,
-        'shortname'       => 'local_vbs_schedule_get_events',
-    ],
-];
+// No named external service block needed. The function is callable via any service
+// that grants it (e.g. moodle_mobile_app). Add $services only if a dedicated,
+// separately permission-managed service is required.

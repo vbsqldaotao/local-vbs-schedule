@@ -194,6 +194,7 @@ class get_events extends external_api {
                           FROM {facetoface_session_roles} sr
                           JOIN {user} u2 ON u2.id = sr.userid
                          WHERE sr.sessionid = fs.id
+                         ORDER BY sr.id ASC
                          LIMIT 1)                            AS instructor
                   FROM {facetoface_sessions} fs
                   JOIN {facetoface_sessions_dates} fsd ON fsd.sessionid = fs.id
