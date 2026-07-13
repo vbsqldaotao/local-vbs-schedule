@@ -1,0 +1,112 @@
+{{!
+    @template local_vbs_schedule/instructor
+
+    CBQL view: instructor schedule browser (Task 3.6).
+    Access-gated to local/vbs_schedule:viewall.
+
+    Context variables:
+    - instructoroptions {array} [{id, name, selected}]
+    - sessions          {array} [{coursename, courseshort, date, timestart, timefinish, location}]
+    - noevents          {bool}  Instructor selected but no sessions found
+    - hasinstructor     {bool}  An instructor has been selected
+    - datefrom          {string} Y-m-d
+    - dateto            {string} Y-m-d
+    - formaction        {string} URL for form submission
+    - calendarurl       {string} Back link to calendar
+}}
+<div class="vbs-instructor-view">
+
+    <div class="mb-3">
+        <a href="{{calendarurl}}" class="btn btn-sm btn-outline-secondary">
+            <i class="fa fa-arrow-left" aria-hidden="true"></i>
+            {{#str}}backtocalendar, local_vbs_schedule{{/str}}
+        </a>
+    </div>
+
+    {{! ── Instructor + date filter form ─────────────────────── }}
+    <form method="get" action="{{formaction}}" class="card mb-4">
+        <div class="card-body py-3">
+            <div class="row g-3 align-items-end">
+
+                <div class="col-12 col-md-4">
+                    <label for="instructorid" class="form-label">
+                        {{#str}}instructor, local_vbs_schedule{{/str}}
+                    </label>
+                    <select name="instructorid" id="instructorid" class="form-select">
+                        <option value="0">{{#str}}chooseinstructor, local_vbs_schedule{{/str}}</option>
+                        {{#instructoroptions}}
+                        <option value="{{id}}" {{#selected}}selected{{/selected}}>{{name}}</option>
+                        {{/instructoroptions}}
+                    </select>
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <label for="datefrom" class="form-label">
+                        {{#str}}datefrom, local_vbs_schedule{{/str}}
+                    </label>
+                    <input type="date" name="datefrom" id="datefrom" class="form-control"
+                           value="{{datefrom}}">
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <label for="dateto" class="form-label">
+                        {{#str}}dateto, local_vbs_schedule{{/str}}
+                    </label>
+                    <input type="date" name="dateto" id="dateto" class="form-control"
+                           value="{{dateto}}">
+                </div>
+
+                <div class="col-12 col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        {{#str}}search, core{{/str}}
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </form>
+
+    {{! ── Results ─────────────────────────────────────────────── }}
+    {{#hasinstructor}}
+
+        {{#noevents}}
+        <div class="vbs-empty-state text-center py-5">
+            <i class="fa fa-calendar-times fa-3x text-muted mb-3" aria-hidden="true"></i>
+            <p class="text-muted mb-0">{{#str}}noinstructorsessions, local_vbs_schedule{{/str}}</p>
+        </div>
+        {{/noevents}}
+
+        {{^noevents}}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{#str}}date, local_vbs_schedule{{/str}}</th>
+                        <th>{{#str}}course, core{{/str}}</th>
+                        <th>{{#str}}location, local_vbs_schedule{{/str}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#sessions}}
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">{{date}}</div>
+                            <small class="text-muted">{{timestart}} – {{timefinish}}</small>
+                        </td>
+                        <td>
+                            {{coursename}}
+                            {{#courseshort}}
+                            <br><small class="text-muted">({{courseshort}})</small>
+                            {{/courseshort}}
+                        </td>
+                        <td><small>{{#location}}{{location}}{{/location}}{{^location}}—{{/location}}</small></td>
+                    </tr>
+                    {{/sessions}}
+                </tbody>
+            </table>
+        </div>
+        {{/noevents}}
+
+    {{/hasinstructor}}
+
+</div>
