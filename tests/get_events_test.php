@@ -507,6 +507,122 @@ final class get_events_test extends \advanced_testcase {
     }
 
     // -------------------------------------------------------------------------
+    // B-BOUNDARY: overlap semantic — events crossing the window edge must show
+    // (VBS-442: fully-inside filter changed to calendar overlap)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Log in a fresh student with the view capability and return the user.
+     *
+     * @return \stdClass
+     */
+    private function login_student(): \stdClass {
+        $student = self::getDataGenerator()->create_user();
+        $this->setUser($student);
+        $this->getDataGenerator()->role_assign(
+            $this->get_role_id('student'), $student->id, \context_system::instance()->id
+        );
+        return $student;
+    }
+
+    /**
+     * TC-F04-017: class event starts inside the window but ends past dateto
+     * (timestart=D+5, timefinish=D+31, window [D, D+30]) must be returned.
+     */
+    public function test_bboundary_tc017_class_ends_after_window(): void {
+        $this->resetAfterTest();
+        $student = $this->login_student();
+
+        $from = self::BASE_TIME;
+        $to   = $from + 30 * 86400;
+        $this->create_facetoface_session($student->id, $from + 5 * 86400, $from + 31 * 86400);
+
+        $result = get_events::execute(0, $from, $to, 0, ['class']);
+        $result = external_api::clean_returnvalue(get_events::execute_returns(), $result);
+
+        $this->assertSame(1, $result['total']);
+        $this->assertSame('class', $result['events'][0]['type']);
+    }
+
+    /**
+     * TC-F04-018: class event starts before datefrom but ends inside the window
+     * (timestart=D-1, timefinish=D+5, window [D, D+30]) must be returned.
+     */
+    public function test_bboundary_tc018_class_starts_before_window(): void {
+        $this->resetAfterTest();
+        $student = $this->login_student();
+
+        $from = self::BASE_TIME;
+        $to   = $from + 30 * 86400;
+        $this->create_facetoface_session($student->id, $from - 1 * 86400, $from + 5 * 86400);
+
+        $result = get_events::execute(0, $from, $to, 0, ['class']);
+        $result = external_api::clean_returnvalue(get_events::execute_returns(), $result);
+
+        $this->assertSame(1, $result['total']);
+    }
+
+    /**
+     * TC-F04-019: class event spans the entire window
+     * (timestart=D-1, timefinish=D+31, window [D, D+30]) must be returned.
+     */
+    public function test_bboundary_tc019_class_spans_window(): void {
+        $this->resetAfterTest();
+        $student = $this->login_student();
+
+        $from = self::BASE_TIME;
+        $to   = $from + 30 * 86400;
+        $this->create_facetoface_session($student->id, $from - 1 * 86400, $from + 31 * 86400);
+
+        $result = get_events::execute(0, $from, $to, 0, ['class']);
+        $result = external_api::clean_returnvalue(get_events::execute_returns(), $result);
+
+        $this->assertSame(1, $result['total']);
+    }
+
+    /**
+     * B-BOUNDARY (exam): an exam session crossing dateto must also be returned
+     * under overlap semantic (starttime=D+5, endtime=D+31, window [D, D+30]).
+     */
+    public function test_bboundary_exam_ends_after_window(): void {
+        $this->resetAfterTest();
+        $student = $this->login_student();
+
+        $from = self::BASE_TIME;
+        $to   = $from + 30 * 86400;
+        $this->create_exam_session($student->id, $from + 5 * 86400, $from + 31 * 86400, 'open');
+
+        $result = get_events::execute(0, $from, $to, 0, ['exam']);
+        $result = external_api::clean_returnvalue(get_events::execute_returns(), $result);
+
+        $this->assertSame(1, $result['total']);
+        $this->assertSame('exam', $result['events'][0]['type']);
+    }
+
+    /**
+     * B-BOUNDARY (negative): events entirely outside the window are excluded.
+     * Half-open boundaries — a class ending exactly at datefrom and an exam
+     * starting exactly at dateto — touch but do not overlap, so neither shows.
+     */
+    public function test_bboundary_non_overlapping_excluded(): void {
+        $this->resetAfterTest();
+        $student = $this->login_student();
+
+        $from = self::BASE_TIME;
+        $to   = $from + 30 * 86400;
+
+        // Ends exactly at datefrom — touches but does not overlap.
+        $this->create_facetoface_session($student->id, $from - 5 * 86400, $from);
+        // Starts exactly at dateto — touches but does not overlap.
+        $this->create_exam_session($student->id, $to, $to + 5 * 86400, 'open');
+
+        $result = get_events::execute(0, $from, $to, 0, ['class', 'exam']);
+        $result = external_api::clean_returnvalue(get_events::execute_returns(), $result);
+
+        $this->assertSame(0, $result['total']);
+    }
+
+    // -------------------------------------------------------------------------
     // Helper
     // -------------------------------------------------------------------------
 
