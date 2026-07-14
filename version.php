@@ -26,6 +26,6 @@ defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_vbs_schedule';
 $plugin->version   = 2026071300;
-$plugin->requires  = 2026042100; // Moodle 5.2.1 or later.
+$plugin->requires  = 2026042001; // Moodle 5.2.1 or later.
 $plugin->maturity  = MATURITY_STABLE;
 $plugin->release   = '1.0.0';
