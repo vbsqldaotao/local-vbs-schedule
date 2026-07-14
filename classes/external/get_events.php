@@ -210,8 +210,8 @@ class get_events extends external_api {
                   JOIN {facetoface_signups_status} fss ON fss.signupid  = fsi.id
                                                       AND fss.superceded = 0
                                                       AND fss.statuscode >= 70
-                 WHERE fsd.timestart  >= :datefrom
-                   AND fsd.timefinish <= :dateto
+                 WHERE fsd.timefinish > :datefrom
+                   AND fsd.timestart  < :dateto
                    AND EXISTS (
                          SELECT 1
                            FROM {enrol} e
@@ -269,8 +269,8 @@ class get_events extends external_api {
                   JOIN {vbs_exam_topic} et      ON et.id = es.topicid
                   JOIN {vbs_exam_enrolment} ee  ON ee.sessionid = es.id
                                                AND ee.userid    = :userid
-                 WHERE es.starttime >= :datefrom
-                   AND es.endtime   <= :dateto
+                 WHERE es.endtime   > :datefrom
+                   AND es.starttime < :dateto
                  ORDER BY es.starttime ASC";
 
         $rows   = $DB->get_records_sql($sql, ['userid' => $userid, 'datefrom' => $datefrom, 'dateto' => $dateto]);
