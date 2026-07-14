@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<libraries>
+    <library>
+        <location>amd/lib/fullcalendar-6.1.21</location>
+        <name>FullCalendar</name>
+        <version>6.1.21</version>
+        <license>MIT</license>
+        <licenseversion></licenseversion>
+        <repositoryurl>https://github.com/fullcalendar/fullcalendar</repositoryurl>
+        <libraryversion>6.1.21</libraryversion>
+        <customisedbymoodle>false</customisedbymoodle>
+        <description>
+            Full-featured JavaScript calendar library. Self-hosted for ATTT airgapped
+            environment compliance (YCKT §II.4.9). See VBS-420.
+            AMD bundle at amd/build/fullcalendar.min.js wraps index.global.min.js
+            in a define() call so it is consumable by Moodle's RequireJS.
+        </description>
+    </library>
+</libraries>
