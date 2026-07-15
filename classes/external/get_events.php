@@ -178,32 +178,10 @@ class get_events extends external_api {
 
         // --- Exam events (vbs_exam) ---
         if (in_array('exam', $types, true)) {
-            $examparams = [
-                'userid'   => $userid,
-                'datefrom' => $datefrom,
-                'dateto'   => $dateto,
-            ];
-
-            $sql = "SELECT CONCAT('exam_', es.id) AS event_id,
-                           'exam'                  AS event_type,
-                           et.name                 AS topic_name,
-                           es.name                 AS session_name,
-                           es.starttime,
-                           es.endtime,
-                           es.location,
-                           es.status
-                      FROM {vbs_exam_session} es
-                      JOIN {vbs_exam_topic} et      ON et.id = es.topicid
-                      JOIN {vbs_exam_enrolment} ee  ON ee.sessionid = es.id
-                                                   AND ee.userid    = :userid
-                     WHERE es.starttime >= :datefrom
-                       AND es.endtime   <= :dateto
-                     ORDER BY es.starttime ASC";
-
-            $rows = $DB->get_records_sql($sql, $examparams);
+            $rows = \local_vbs_exam\session::get_user_events($userid, $datefrom, $dateto);
             foreach ($rows as $row) {
                 $events[] = [
-                    'id'         => $row->event_id,
+                    'id'         => 'exam_' . $row->id,
                     'type'       => 'exam',
                     'title'      => $row->topic_name . ' — ' . $row->session_name,
                     'courseid'   => 0,
