@@ -133,15 +133,26 @@ class get_events extends external_api {
             $events = array_merge($events, self::fetch_class_events($DB, $userid, $datefrom, $dateto, $courseid));
         }
 
-        // --- Exam events (vbs_exam) ---
-        // Note: vbs_exam schema has no FK to mdl_course, so courseid filter does not apply.
-        // Schema contract with local_vbs_exam (R-03 / VBS-415):
-        //   vbs_exam_session: id, topicid, name, starttime, endtime, location, status
-        //   vbs_exam_enrolment: sessionid, userid
-        //   vbs_exam_topic: id, name
-        // If local_vbs_exam changes these columns, update the SQL here.
+        // --- Exam events (local_vbs_exam API) ---
+        // Delegated to local_vbs_exam\session::get_user_events() — the stable cross-plugin
+        // contract (VBS-418). Do NOT query vbs_exam_* tables directly from this plugin.
         if (in_array('exam', $types, true)) {
-            $events = array_merge($events, self::fetch_exam_events($DB, $userid, $datefrom, $dateto));
+            $rows = \local_vbs_exam\session::get_user_events($userid, $datefrom, $dateto);
+            foreach ($rows as $row) {
+                $events[] = [
+                    'id'         => 'exam_' . $row->id,
+                    'type'       => 'exam',
+                    'title'      => $row->topic_name . ' — ' . $row->session_name,
+                    'courseid'   => 0,
+                    'coursename' => $row->topic_name,
+                    'starttime'  => (int) $row->starttime,
+                    'endtime'    => (int) $row->endtime,
+                    'location'   => $row->location ?? '',
+                    'instructor' => '',
+                    'color'      => '#ef4444',
+                    'status'     => $row->status,
+                ];
+            }
         }
 
         // Sort combined list by starttime ascending.
@@ -239,55 +250,6 @@ class get_events extends external_api {
                 'instructor' => $row->instructor ?? '',
                 'color'      => '#3b82f6',
                 'status'     => self::resolve_class_status((int) $row->timestart, (int) $row->endtime),
-            ];
-        }
-        return $result;
-    }
-
-    /**
-     * Fetch exam events from local_vbs_exam tables.
-     *
-     * Note: vbs_exam schema has no direct FK to mdl_course; courseid filter is not applied here.
-     *
-     * @param \moodle_database $DB
-     * @param int $userid
-     * @param int $datefrom
-     * @param int $dateto
-     * @return array
-     */
-    private static function fetch_exam_events(\moodle_database $DB, int $userid,
-                                              int $datefrom, int $dateto): array {
-        $sql = "SELECT CONCAT('exam_', es.id) AS event_id,
-                       'exam'                  AS event_type,
-                       et.name                 AS topic_name,
-                       es.name                 AS session_name,
-                       es.starttime,
-                       es.endtime,
-                       es.location,
-                       es.status
-                  FROM {vbs_exam_session} es
-                  JOIN {vbs_exam_topic} et      ON et.id = es.topicid
-                  JOIN {vbs_exam_enrolment} ee  ON ee.sessionid = es.id
-                                               AND ee.userid    = :userid
-                 WHERE es.endtime   > :datefrom
-                   AND es.starttime < :dateto
-                 ORDER BY es.starttime ASC";
-
-        $rows   = $DB->get_records_sql($sql, ['userid' => $userid, 'datefrom' => $datefrom, 'dateto' => $dateto]);
-        $result = [];
-        foreach ($rows as $row) {
-            $result[] = [
-                'id'         => $row->event_id,
-                'type'       => 'exam',
-                'title'      => $row->topic_name . ' — ' . $row->session_name,
-                'courseid'   => 0,
-                'coursename' => $row->topic_name,
-                'starttime'  => (int) $row->starttime,
-                'endtime'    => (int) $row->endtime,
-                'location'   => $row->location ?? '',
-                'instructor' => '',
-                'color'      => '#ef4444',
-                'status'     => $row->status,
             ];
         }
         return $result;
