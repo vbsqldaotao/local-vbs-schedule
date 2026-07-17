@@ -137,25 +137,26 @@ class get_events extends external_api {
                            'class'                  AS event_type,
                            ff.name                  AS course_name,
                            c.id                     AS courseid,
-                           fs.timestart,
-                           fs.timefinish            AS endtime,
-                           fs.location,
-                           u.firstname,
-                           u.lastname
+                           fsd.timestart,
+                           fsd.timefinish           AS endtime,
+                           NULL                     AS location,
+                           NULL                     AS firstname,
+                           NULL                     AS lastname
                       FROM {facetoface_sessions} fs
-                      JOIN {facetoface} ff       ON ff.id  = fs.facetoface
-                      JOIN {course} c            ON c.id   = ff.course
-                      JOIN {facetoface_signups} fsi
-                                                 ON fsi.sessionid = fs.id
-                                                AND fsi.userid    = :userid
-                                                AND fsi.statuscode >= 70
-                      JOIN {user_enrolments} ue  ON ue.userid = fsi.userid
-                                                AND ue.status  = 0
-                      LEFT JOIN {user} u         ON u.id = fs.trainerid
-                     WHERE fs.timestart  >= :datefrom
-                       AND fs.timefinish <= :dateto
+                      JOIN {facetoface} ff                ON ff.id  = fs.facetoface
+                      JOIN {course} c                     ON c.id   = ff.course
+                      JOIN {facetoface_sessions_dates} fsd ON fsd.sessionid = fs.id
+                      JOIN {facetoface_signups} fsi       ON fsi.sessionid = fs.id
+                                                         AND fsi.userid    = :userid
+                      JOIN {facetoface_signups_status} fsst ON fsst.signupid  = fsi.id
+                                                           AND fsst.superceded = 0
+                                                           AND fsst.statuscode >= 70
+                      JOIN {user_enrolments} ue           ON ue.userid = fsi.userid
+                                                         AND ue.status  = 0
+                     WHERE fsd.timestart  >= :datefrom
+                       AND fsd.timefinish <= :dateto
                        $coursesql
-                     ORDER BY fs.timestart ASC";
+                     ORDER BY fsd.timestart ASC";
 
             $rows = $DB->get_records_sql($sql, $classparams);
             foreach ($rows as $row) {

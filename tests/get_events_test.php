@@ -63,19 +63,21 @@ final class get_events_test extends \advanced_testcase {
 
         // Session.
         $sessionid = $DB->insert_record('facetoface_sessions', (object)[
-            'facetoface'  => $ffid,
-            'capacity'    => 100,
+            'facetoface'   => $ffid,
+            'capacity'     => 100,
             'allowoverbook' => 0,
-            'waitlisteveryone' => 0,
-            'duration'    => $timefinish - $timestart,
-            'normalcost'  => 0,
+            'duration'     => $timefinish - $timestart,
+            'normalcost'   => 0,
             'discountcost' => 0,
-            'timestart'   => $timestart,
-            'timefinish'  => $timefinish,
-            'trainerid'   => 0,
-            'location'    => 'Room A',
-            'timecreated' => self::BASE_TIME,
+            'timecreated'  => self::BASE_TIME,
             'timemodified' => self::BASE_TIME,
+        ]);
+
+        // Session date (timestart/timefinish live in facetoface_sessions_dates, not facetoface_sessions).
+        $DB->insert_record('facetoface_sessions_dates', (object)[
+            'sessionid'  => $sessionid,
+            'timestart'  => $timestart,
+            'timefinish' => $timefinish,
         ]);
 
         // Enrolment (active).
@@ -90,16 +92,21 @@ final class get_events_test extends \advanced_testcase {
             'timemodified'  => self::BASE_TIME,
         ]);
 
-        // Signup.
-        $DB->insert_record('facetoface_signups', (object)[
-            'sessionid'    => $sessionid,
-            'userid'       => $userid,
-            'mailedreminder' => 0,
-            'discountcode' => '',
+        // Signup (statuscode lives in facetoface_signups_status, not facetoface_signups).
+        $signupid = $DB->insert_record('facetoface_signups', (object)[
+            'sessionid'        => $sessionid,
+            'userid'           => $userid,
+            'mailedreminder'   => 0,
+            'discountcode'     => '',
             'notificationtype' => 0,
-            'statuscode'   => $statuscode,
-            'timecreated'  => self::BASE_TIME,
-            'timemodified' => self::BASE_TIME,
+        ]);
+
+        $DB->insert_record('facetoface_signups_status', (object)[
+            'signupid'    => $signupid,
+            'statuscode'  => $statuscode,
+            'superceded'  => 0,
+            'createdby'   => 0,
+            'timecreated' => self::BASE_TIME,
         ]);
 
         return $sessionid;
